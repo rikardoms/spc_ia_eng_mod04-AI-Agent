@@ -62,10 +62,7 @@ Answer: <Suggested activities based on sunny weather that are highly specific to
 """
 
 def agent(query):
-
-    rsp = openai_obj.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[
+    messages = [
             {
                 "role":"system",
                 "content":systemPrompt
@@ -75,17 +72,32 @@ def agent(query):
                 "content":query
             }
         ]
+    rsp = openai_obj.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=messages
     )
     pprint(rsp.choices[0].message.content)
-    arr_rsp = rsp.choices[0].message.content.split("\n")
+    new_item = {"role":"assistant", "content":rsp.choices[0].message.content}
+    messages.append(new_item)
+    
+    pprint(messages)
+    
+    #arr_rsp = rsp.choices[0].message.content.split("\n")
     #re.search(r'word:\w\w\w', str)
     pattern = r'Action:\s*(.*?)\n'
     #print(re.search(pattern,rsp.choices[0].message.content).group())
     action_rsp = re.search(pattern,rsp.choices[0].message.content).group().replace("\n","").split(":")
-    #action_rsp = action_rsp.replace("\n","").split(":")
-    #pprint(action_rsp)
-    #pprint(action_rsp[1].strip())
-    #pprint(rsp.choices[0].message.content["Action"])
-    observation = known_actions[action_rsp[1].strip()]()
-    pprint(observation)
+    
+    if action_rsp:
+        if action_rsp[1].strip() in known_actions:
+        #action_rsp = action_rsp.replace("\n","").split(":")
+        #pprint(action_rsp)
+        #pprint(action_rsp[1].strip())
+        #pprint(rsp.choices[0].message.content["Action"])
+            observation = known_actions[action_rsp[1].strip()]()
+            new_item = {"role":"assistant", "content":"Observation:"+observation}
+            messages.append(new_item)
+            pprint(messages)
+        else:
+            raise Exception(f"Function {action_rsp[1].strip()} not available.")
 agent("What is the temperature today in Shawinigan?")

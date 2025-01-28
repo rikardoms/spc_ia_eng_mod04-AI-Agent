@@ -1,16 +1,29 @@
-from openai import OpenAI
+import json
 import os
+import re
+import requests
 from dotenv import load_dotenv, dotenv_values
 from pprint import pprint
-import asyncio
+from openai import OpenAI
+from urllib.request import urlopen
+
+
 load_dotenv()
-import json
-import re
+
 openai_obj = OpenAI(api_key=os.getenv("openai_apikey"))
 
+
+
 def get_current_location():
-    
-    return "Shawinigan, Quebec, Canada"
+    d = str(urlopen('http://checkip.dyndns.com/')
+            .read())
+
+    response = requests.post("http://ip-api.com/batch", json=[
+        {"query": re.compile(r'Address: (\d+\.\d+\.\d+\.\d+)').search(d).group(1)}
+        ]).json()
+
+    return response[0]["city"]+', '+ response[0]["region"]+', '+response[0]["country"]
+
 
 def get_weather():
     return json.dumps({
@@ -19,11 +32,12 @@ def get_weather():
         "forecast": "Sunny"
     })
 
-#pprint(rsp.choices[0].content)
+
 known_actions = {
     "getCurrentWeather": get_weather,
     "getLocation": get_current_location
 }
+
 systemPrompt = """You cycle through Thought, Action, PAUSE, Observation. At the end of the loop you output a final Answer. Your final answer should be highly specific to the observations you have from running
 "
 the actions.
@@ -72,32 +86,45 @@ def agent(query):
                 "content":query
             }
         ]
-    rsp = openai_obj.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=messages
-    )
-    pprint(rsp.choices[0].message.content)
-    new_item = {"role":"assistant", "content":rsp.choices[0].message.content}
-    messages.append(new_item)
-    
-    pprint(messages)
-    
-    #arr_rsp = rsp.choices[0].message.content.split("\n")
-    #re.search(r'word:\w\w\w', str)
+   
+    MAX_ITERATION_ALLOWED = 5
     pattern = r'Action:\s*(.*?)\n'
-    #print(re.search(pattern,rsp.choices[0].message.content).group())
-    action_rsp = re.search(pattern,rsp.choices[0].message.content).group().replace("\n","").split(":")
-    
-    if action_rsp:
-        if action_rsp[1].strip() in known_actions:
-        #action_rsp = action_rsp.replace("\n","").split(":")
-        #pprint(action_rsp)
-        #pprint(action_rsp[1].strip())
-        #pprint(rsp.choices[0].message.content["Action"])
-            observation = known_actions[action_rsp[1].strip()]()
-            new_item = {"role":"assistant", "content":"Observation:"+observation}
-            messages.append(new_item)
-            pprint(messages)
-        else:
-            raise Exception(f"Function {action_rsp[1].strip()} not available.")
-agent("What is the temperature today in Shawinigan?")
+
+    for i in range(5):
+        print(i)
+        rsp = openai_obj.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=messages
+        )
+        #pprint(rsp.choices[0].message.content)
+        new_item = {"role":"assistant", "content":rsp.choices[0].message.content}
+        messages.append(new_item)
+        
+        #pprint(messages)
+        
+        #arr_rsp = rsp.choices[0].message.content.split("\n")
+        #re.search(r'word:\w\w\w', str)
+        
+        #print(re.search(pattern,rsp.choices[0].message.content).group())
+        action_rsp = re.search(pattern,rsp.choices[0].message.content)
+        #action_rsp = re.search(pattern,rsp.choices[0].message.content).group().replace("\n","").split(":")
+
+        print(action_rsp)
+        if action_rsp:
+            action_rsp = action_rsp.group().replace("\n","").split(":")
+            if action_rsp[1].strip() in known_actions:
+            #action_rsp = action_rsp.replace("\n","").split(":")
+            #pprint(action_rsp)
+            #pprint(action_rsp[1].strip())
+            #pprint(rsp.choices[0].message.content["Action"])
+                observation = known_actions[action_rsp[1].strip()]()
+                new_item = {"role":"assistant", "content":"Observation:"+observation}
+                messages.append(new_item)
+                #pprint(messages)
+            else:
+                raise Exception(f"Function {action_rsp[1].strip()} not available.")
+        else:    
+            print("agent finish with task")
+            #return rsp.choices
+            return rsp.choices[0].message.content
+print(agent("What is the temperature today?"))

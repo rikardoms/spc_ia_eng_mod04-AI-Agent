@@ -127,4 +127,4 @@ def agent(query):
             print("agent finish with task")
             #return rsp.choices
             return rsp.choices[0].message.content
-print(agent("What is the temperature today?"))
+print(agent("Can you suggest some activities to do in my city this weekend?"))

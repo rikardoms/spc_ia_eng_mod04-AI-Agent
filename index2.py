@@ -15,6 +15,7 @@ openai_obj = OpenAI(api_key=os.getenv("openai_apikey"))
 
 
 
+
 def get_current_location():
     
     d = str(urlopen('http://checkip.dyndns.com/')
@@ -24,16 +25,15 @@ def get_current_location():
         {"query": re.compile(r'Address: (\d+\.\d+\.\d+\.\d+)').search(d).group(1)}
         ]).json()
 
-    return response[0]["city"]+', '+ response[0]["region"]+', '+response[0]["country"]
+    return response[0]["city"]+','+ response[0]["region"]+','+response[0]["country"]
 
 
 def get_weather(location):
-    return json.dumps({
-        "city": location,
-        "temperature": 78,
-        "unit":"F",
-        "forecast": "Sunny"
-    })
+    location = ast.literal_eval(location)
+    weather_url = os.getenv("weather_url")
+    weather_url += location["location"]
+    
+    return json.dumps(requests.get(weather_url).json()["current"])
 
 
 known_actions = {

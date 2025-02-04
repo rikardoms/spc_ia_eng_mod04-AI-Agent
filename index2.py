@@ -1,3 +1,4 @@
+import ast
 import json
 import os
 import re
@@ -26,9 +27,9 @@ def get_current_location():
     return response[0]["city"]+', '+ response[0]["region"]+', '+response[0]["country"]
 
 
-def get_weather():
-    
+def get_weather(location):
     return json.dumps({
+        "city": location,
         "temperature": 78,
         "unit":"F",
         "forecast": "Sunny"
@@ -71,7 +72,12 @@ def agent(query):
                             "description": "Get the current weather",
                             "parameters": {
                                 "type": "object",
-                                "properties": {}
+                                "properties": {
+                                    "location":{
+                                        "type": "string",
+                                        "description": "the city"
+                                    }
+                                }
                             }
                         }
                     },
@@ -89,7 +95,7 @@ def agent(query):
                 ]
         
         )
-
+        
         if rsp.choices[0].finish_reason == "stop":
             print("Here the answer for our question")
             return rsp.choices[0].message.content
@@ -97,9 +103,15 @@ def agent(query):
             
             messages.append(rsp.choices[0].message)
             for i in rsp.choices[0].message.tool_calls:
-                
-                observation = known_actions[i.function.name.strip()]()
-                
+               
+                args = ast.literal_eval(i.function.arguments)
+
+                observation = None
+                if len(args) > 0:
+                    observation = known_actions[i.function.name.strip()](i.function.arguments)
+                else:
+                    observation = known_actions[i.function.name.strip()]()
+                    
                 new_item = {
                     "tool_call_id":i.id,
                     "role":"tool", 
@@ -108,7 +120,7 @@ def agent(query):
                 messages.append(new_item)
        
         
-print(agent("What is my current location and who is the weather?"))
+print(agent("Discover my location and give me a list of outdoors activites I can do this weekend!"))
 """
 [Choice(finish_reason='tool_calls', index=0, logprobs=None, message=ChatCompletionMessage(content=None, refusal=None, role='assistant', audio=None, function_call=None, tool_calls=[ChatCompletionMessageToolCall(id='call_rlc5JvFxfOryoXzZcybttt1i', function=Function(arguments='{}', name='getLocation'), type='function')]))]
 """
